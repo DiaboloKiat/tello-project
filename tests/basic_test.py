@@ -1,20 +1,20 @@
 from djitellopy import Tello
+from utils import CvFpsCalc
+
 import cv2, math, time
 import mediapipe as mp
+
 
 
 def main():
     mp_drawing = mp.solutions.drawing_utils
     mp_hands = mp.solutions.hands
-    
-    # init global vars
-    global battery_status
 
     # Argument parsing
     in_flight = False
 
     # For webcam input:
-    hands = mp_hands.Hands(min_detection_confidence = 0.5, min_tracking_confidence = 0.5)
+    hands = mp_hands.Hands(min_detection_confidence = 0.7, min_tracking_confidence = 0.5)
 
     # Camera preparation
     tello = Tello()
@@ -23,14 +23,13 @@ def main():
 
     frame_read = tello.get_frame_read()
 
-    battery_status = -1
-    # tello.takeoff()
-
-    def tello_battery(tello):
-        global battery_status
-        battery_status = tello.get_battery()
+    # FPS Measurement
+    cv_fps_calc = CvFpsCalc(buffer_len=5)
 
     while True:
+        fps = cv_fps_calc.get()
+        battery_status = tello.get_battery()
+
         # In reality you want to display frames in a seperate thread. Otherwise
         #  they will freeze while the drone moves.
         image = frame_read.frame
@@ -51,8 +50,10 @@ def main():
             for hand_landmarks in results.multi_hand_landmarks:
                 mp_drawing.draw_landmarks(image, hand_landmarks, mp_hands.HAND_CONNECTIONS)
 
+        # Process Key (ESC: end)
         key = cv2.waitKey(1) & 0xff
         if key == 27: # ESCArgument parsing
+            tello.land()
             break
         elif key == 32:
             if not in_flight:
@@ -81,8 +82,8 @@ def main():
             tello.move_down(30)
 
         # Battery status and image rendering
-        cv2.putText(image, "Battery: {}".format(battery_status), (5, 720 - 5), cv.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-        cv2.imshow('Drone', image)
+        cv2.putText(image, "Battery: {} / fps:{}".format(battery_status, fps), (5, 720 - 5), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+        cv2.imshow('DK_Drone', image)
 
     tello.land()
     tello.end()
