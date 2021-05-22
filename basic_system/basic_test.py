@@ -1,8 +1,8 @@
 from djitellopy import Tello
 from utils import CvFpsCalc
 
-import cv2, math, time
-import mediapipe as mp
+import cv2
+import mediapipe as mp      # https://google.github.io/mediapipe/solutions/hands.html
 
 
 
@@ -14,17 +14,17 @@ def main():
     in_flight = False
 
     # For webcam input:
-    hands = mp_hands.Hands(min_detection_confidence = 0.7, min_tracking_confidence = 0.5)
+    hands = mp_hands.Hands(static_image_mode=True, max_num_hands=2, min_detection_confidence = 0.8, min_tracking_confidence = 0.8)
 
     # Camera preparation
     tello = Tello()
     tello.connect()
     tello.streamon()
 
-    frame_read = tello.get_frame_read()
-
     # FPS Measurement
     cv_fps_calc = CvFpsCalc(buffer_len=5)
+
+    frame_read = tello.get_frame_read()
 
     while True:
         fps = cv_fps_calc.get()
@@ -60,6 +60,7 @@ def main():
                 # Take-off drone
                 tello.takeoff()
                 in_flight = True
+                tello.move_up(50)
             elif in_flight:
                 # Land tello
                 tello.land()
